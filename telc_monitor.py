@@ -197,7 +197,7 @@ def diff_cpts(old: dict, new: dict) -> list[str]:
             continue                      # post type moi xuat hien -> bao rieng
         for it in items:
             if str(it.get("id")) not in old_ids:
-                events.append(f"🆕 <b>Bai moi ({esc(base)})</b>: "
+                events.append(f"🎟️ <b>SUAT THI MOI ({esc(base)})</b>: "
                               f"{esc(it.get('title') or it.get('id'))}\n{it.get('link','')}")
     for base in new:
         if base not in old and old:
@@ -233,7 +233,8 @@ def _to_text(html: str) -> str:
     return re.sub(r"\s+", " ", text).strip().lower()
 
 
-def clean_html(html: str) -> str:
+def clean_html(html: str) -> tuple[str, bool]:
+    """Tra ve (text, da_lay_duoc_vung_noi_dung)."""
     for rx in NOISE:
         html = rx.sub(" ", html)
     for rx in VOLATILE:
@@ -244,8 +245,8 @@ def clean_html(html: str) -> str:
         if m:
             part = _to_text(m.group(1))
             if len(part) >= MIN_TEXT:
-                return part
-    return full
+                return part, True
+    return full, False
 
 
 def check_pages() -> dict:
@@ -255,13 +256,15 @@ def check_pages() -> dict:
         if status != 200:
             out[url] = {"status": status}
             continue
-        text = clean_html(body)
+        text, real_content = clean_html(body)
         out[url] = {
             "status": 200,
             "hash": hashlib.sha256(text.encode()).hexdigest()[:16],
             "len": len(text),
             "empty": any(k in text for k in EMPTY_MARKERS),
-            "suspect": len(text) < MIN_TEXT,   # noi dung render bang JS?
+            # khong trich duoc <main>/<article> -> chi dang hash header/footer,
+            # rat co the noi dung ky thi duoc render bang JS
+            "suspect": (not real_content) or len(text) < MIN_TEXT,
         }
     return out
 
@@ -274,9 +277,9 @@ def diff_pages(old: dict, new: dict) -> list[str]:
             continue
         if prev.get("status") == 200 and prev.get("hash") != cur.get("hash"):
             delta = cur["len"] - prev.get("len", 0)
-            events.append(
-                f"📄 Trang lich thi thay doi ({delta:+d} ky tu)\n{url}"
-            )
+            tag = "ℹ️" if cur.get("suspect") else "📄"
+            note = " (chi la phan khung trang)" if cur.get("suspect") else ""
+            events.append(f"{tag} Trang thay doi ({delta:+d} ky tu){note}\n{url}")
         if prev.get("empty") and not cur.get("empty"):
             events.append(f"⚡️ <b>Danh sach ky thi da co noi dung!</b>\n{url}")
     return events
@@ -285,7 +288,7 @@ def diff_pages(old: dict, new: dict) -> list[str]:
 # --------------------------------------------------------------------------- #
 # 3. Sitemap
 # --------------------------------------------------------------------------- #
-LOC_RX = re.compile(r"<loc>\s*([^<\s]+)\s*</loc>", re.I)
+LOC_RX = re.compile(r"<loc>\s*([^<]+?)\s*</loc>", re.I)
 
 
 def check_sitemap(max_subs: int = 12) -> tuple[list[str] | None, str]:
@@ -309,7 +312,10 @@ def check_sitemap(max_subs: int = 12) -> tuple[list[str] | None, str]:
         urls.update(subs)
     if not urls:
         urls.update(subs)          # sub-sitemap rong: theo doi chinh index
-    return sorted(urls), src
+    if not urls:
+        peek = re.sub(r"\s+", " ", body[:160]).strip()
+        return sorted(urls), f"{src} — 0 URL, dau file: {peek!r}"
+    return sorted(urls), f"{src} — {len(urls)} URL"
 
 
 KEYWORDS = ("telc", "b1", "exam", "ticket", "lich", "thi", "pruef", "product")
@@ -400,7 +406,7 @@ def main() -> int:
     if products is not None:
         events += diff_products(old.get("products") or {}, products)
     if cpts:
-        events += diff_cpts(old.get("cpts") or {}, cpts)
+        events = diff_cpts(old.get("cpts") or {}, cpts) + events
     events += diff_pages(old.get("pages") or {}, pages)
     if sitemap is not None:
         events += diff_sitemap(old.get("sitemap") or [], sitemap)
