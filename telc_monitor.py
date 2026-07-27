@@ -35,7 +35,11 @@ EXAM_PAGES = [
     f"{BASE}/home/lich-thi/",
     f"{BASE}/vi/home/lich-thi/",
 ]
-SITEMAP_INDEX = f"{BASE}/wp-sitemap.xml"
+SITEMAP_CANDIDATES = [
+    f"{BASE}/wp-sitemap.xml",      # WordPress core
+    f"{BASE}/sitemap_index.xml",   # Yoast SEO
+    f"{BASE}/sitemap.xml",         # Rank Math / plugin khac
+]
 
 STATE_PATH = os.environ.get("TELC_STATE", "state/telc.json")
 UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 " \
@@ -210,10 +214,16 @@ def diff_pages(old: dict, new: dict) -> list[str]:
 LOC_RX = re.compile(r"<loc>\s*([^<\s]+)\s*</loc>", re.I)
 
 
-def check_sitemap(max_subs: int = 12) -> list[str] | None:
-    status, body = fetch(SITEMAP_INDEX)
-    if status != 200:
-        return None
+def check_sitemap(max_subs: int = 12) -> tuple[list[str] | None, str]:
+    body, src = None, ""
+    for url in SITEMAP_CANDIDATES:
+        status, b = fetch(url)
+        if status == 200 and "<loc>" in b:
+            body, src = b, url
+            break
+        src = f"HTTP {status} tai {urllib.parse.urlparse(url).path}"
+    if body is None:
+        return None, src
     subs = LOC_RX.findall(body)
     urls: set[str] = set()
     if any(s.endswith(".xml") for s in subs):
@@ -223,7 +233,7 @@ def check_sitemap(max_subs: int = 12) -> list[str] | None:
                 urls.update(LOC_RX.findall(b2))
     else:
         urls.update(subs)
-    return sorted(urls)
+    return sorted(urls), src
 
 
 KEYWORDS = ("telc", "b1", "exam", "ticket", "lich", "thi", "pruef", "product")
@@ -307,7 +317,7 @@ def main() -> int:
 
     products, api_reason = check_products()
     pages = check_pages()
-    sitemap = check_sitemap()
+    sitemap, sitemap_src = check_sitemap()
 
     events: list[str] = []
     if products is not None:
@@ -322,17 +332,36 @@ def main() -> int:
         "products_api": "ok" if products is not None else api_reason,
         "pages": pages,
         "sitemap": sitemap if sitemap is not None else old.get("sitemap", []),
+        "sources": {
+            "store_api": "ok" if products is not None else api_reason,
+            "sitemap": sitemap_src if sitemap is not None else f"khong doc duoc ({sitemap_src})",
+            "pages": {u: v.get("status") for u, v in pages.items()},
+        },
     }
     save_state(new_state)
 
     n_prod = len(new_state["products"] or {})
-    print(f"[{now}] products={n_prod} api={new_state['products_api']} "
-          f"sitemap={len(new_state['sitemap'])} events={len(events)}")
+    src = new_state["sources"]
+    print(f"[{now}] products={n_prod} sitemap={len(new_state['sitemap'])} "
+          f"events={len(events)}")
+    print(f"  store_api : {src['store_api']}")
+    print(f"  sitemap   : {src['sitemap']}")
+    for u, st in src["pages"].items():
+        print(f"  page      : HTTP {st} — {u}")
+
+    live_pages = [u for u, st in src["pages"].items() if st == 200]
+    if not live_pages and products is None and sitemap is None:
+        notify("🛑 <b>Monitor telc: KHONG nguon nao truy cap duoc</b>\n"
+               "Co the site chan IP cua GitHub runner. Kiem tra log Actions.")
+        return 1
 
     if first_run:
         notify(f"✅ <b>Monitor telc IBK da khoi dong</b>\n"
-               f"Baseline: {n_prod} san pham, "
-               f"{len(new_state['sitemap'])} URL.\nLuc {now}")
+               f"Baseline: {n_prod} san pham, {len(new_state['sitemap'])} URL\n"
+               f"• Store API: {esc(str(src['store_api']))}\n"
+               f"• Sitemap: {esc(str(src['sitemap']))}\n"
+               f"• Trang lich thi: {len(live_pages)}/{len(src['pages'])} truy cap duoc\n"
+               f"Luc {now}")
         return 0
 
     if events:
