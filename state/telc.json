@@ -1,17 +1,29 @@
 {
-  "checked_at": "27/07/2026 20:11 ICT",
+  "checked_at": "27/07/2026 20:17 ICT",
+  "cpts": {
+    "tc_events": []
+  },
   "pages": {
+    "https://abroad.ibk-merseburg.de/": {
+      "empty": false,
+      "hash": "7f0765fb4af48241",
+      "len": 978,
+      "status": 200,
+      "suspect": false
+    },
     "https://abroad.ibk-merseburg.de/home/lich-thi/": {
       "empty": false,
-      "hash": "03780b8363f63fd2",
-      "len": 30,
-      "status": 200
+      "hash": "0c9a2e1b7e5b8b75",
+      "len": 327,
+      "status": 200,
+      "suspect": false
     },
     "https://abroad.ibk-merseburg.de/vi/home/lich-thi/": {
       "empty": false,
-      "hash": "03780b8363f63fd2",
-      "len": 30,
-      "status": 200
+      "hash": "e5a6a691c101b61c",
+      "len": 323,
+      "status": 200,
+      "suspect": false
     }
   },
   "products": {},
@@ -19,10 +31,12 @@
   "sitemap": [],
   "sources": {
     "pages": {
+      "https://abroad.ibk-merseburg.de/": 200,
       "https://abroad.ibk-merseburg.de/home/lich-thi/": 200,
       "https://abroad.ibk-merseburg.de/vi/home/lich-thi/": 200
     },
     "sitemap": "https://abroad.ibk-merseburg.de/wp-sitemap.xml",
-    "store_api": "HTTP 404 tai /wp-json/wc/store/products"
+    "store_api": "HTTP 404 tai /wp-json/wc/store/products",
+    "wp_rest": "1 post type nghi van, 1 doc duoc"
   }
 }
