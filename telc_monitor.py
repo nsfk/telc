@@ -32,6 +32,7 @@ STORE_API_CANDIDATES = [
     f"{BASE}/wp-json/wc/store/products?per_page=100",
 ]
 EXAM_PAGES = [
+    f"{BASE}/",
     f"{BASE}/home/lich-thi/",
     f"{BASE}/vi/home/lich-thi/",
 ]
@@ -144,6 +145,68 @@ def diff_products(old: dict, new: dict) -> list[str]:
 
 
 # --------------------------------------------------------------------------- #
+# 1b. WP REST: Store API 404 khong co nghia la REST tat han
+# --------------------------------------------------------------------------- #
+CPT_HINTS = ("product", "ticket", "event", "exam", "pruef", "telc",
+             "lich", "thi", "termin", "course", "kurs")
+
+
+def check_cpts() -> tuple[dict, str]:
+    """Tra ve ({rest_base: [{id,title,link}]}, ghi_chu)."""
+    status, body = fetch(f"{BASE}/wp-json/wp/v2/types")
+    if status != 200:
+        return {}, f"HTTP {status} tai /wp-json/wp/v2/types"
+    try:
+        types = json.loads(body)
+    except json.JSONDecodeError:
+        return {}, "/types tra ve khong phai JSON"
+
+    bases = []
+    for slug, info in (types or {}).items():
+        base = (info or {}).get("rest_base") or slug
+        blob = f"{slug} {base} {(info or {}).get('name','')}".lower()
+        if any(h in blob for h in CPT_HINTS):
+            bases.append(base)
+
+    found = {}
+    for base in bases[:8]:
+        st, b = fetch(f"{BASE}/wp-json/wp/v2/{base}"
+                      f"?per_page=30&_fields=id,link,title,date", retries=1)
+        if st != 200:
+            continue
+        try:
+            items = json.loads(b)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(items, list):
+            found[base] = [{
+                "id": it.get("id"),
+                "link": it.get("link", ""),
+                "title": ((it.get("title") or {}).get("rendered") or "").strip(),
+            } for it in items]
+    note = f"{len(bases)} post type nghi van, {len(found)} doc duoc" if bases \
+        else "khong co post type nao khop tu khoa"
+    return found, note
+
+
+def diff_cpts(old: dict, new: dict) -> list[str]:
+    events = []
+    for base, items in new.items():
+        old_ids = {str(i.get("id")) for i in (old.get(base) or [])}
+        if base not in old:
+            continue                      # post type moi xuat hien -> bao rieng
+        for it in items:
+            if str(it.get("id")) not in old_ids:
+                events.append(f"🆕 <b>Bai moi ({esc(base)})</b>: "
+                              f"{esc(it.get('title') or it.get('id'))}\n{it.get('link','')}")
+    for base in new:
+        if base not in old and old:
+            events.append(f"📦 Post type moi lo dien: <code>{esc(base)}</code> "
+                          f"({len(new[base])} muc)")
+    return events
+
+
+# --------------------------------------------------------------------------- #
 # 2. Hash trang Exam Dates
 # --------------------------------------------------------------------------- #
 NOISE = [
@@ -161,18 +224,28 @@ VOLATILE = [
 EMPTY_MARKERS = ("no posts matched", "khong co bai viet", "keine beitr")
 
 
+MIN_TEXT = 200   # duoi nguong nay coi nhu trich hut, dung ban toan trang
+
+
+def _to_text(html: str) -> str:
+    text = re.sub(r"<[^>]+>", " ", html)
+    text = urllib.parse.unquote(text)
+    return re.sub(r"\s+", " ", text).strip().lower()
+
+
 def clean_html(html: str) -> str:
     for rx in NOISE:
         html = rx.sub(" ", html)
     for rx in VOLATILE:
         html = rx.sub(" ", html)
-    # chi giu vung noi dung neu tim thay
-    m = re.search(r'<main\b[^>]*>(.*?)</main>', html, re.S | re.I)
-    if m:
-        html = m.group(1)
-    text = re.sub(r"<[^>]+>", " ", html)
-    text = urllib.parse.unquote(text)
-    return re.sub(r"\s+", " ", text).strip().lower()
+    full = _to_text(html)
+    for pat in (r"<main\b[^>]*>(.*?)</main>", r"<article\b[^>]*>(.*?)</article>"):
+        m = re.search(pat, html, re.S | re.I)
+        if m:
+            part = _to_text(m.group(1))
+            if len(part) >= MIN_TEXT:
+                return part
+    return full
 
 
 def check_pages() -> dict:
@@ -188,6 +261,7 @@ def check_pages() -> dict:
             "hash": hashlib.sha256(text.encode()).hexdigest()[:16],
             "len": len(text),
             "empty": any(k in text for k in EMPTY_MARKERS),
+            "suspect": len(text) < MIN_TEXT,   # noi dung render bang JS?
         }
     return out
 
@@ -233,6 +307,8 @@ def check_sitemap(max_subs: int = 12) -> tuple[list[str] | None, str]:
                 urls.update(LOC_RX.findall(b2))
     else:
         urls.update(subs)
+    if not urls:
+        urls.update(subs)          # sub-sitemap rong: theo doi chinh index
     return sorted(urls), src
 
 
@@ -316,12 +392,15 @@ def main() -> int:
     now = datetime.now(ICT).strftime("%d/%m/%Y %H:%M ICT")
 
     products, api_reason = check_products()
+    cpts, cpt_note = check_cpts()
     pages = check_pages()
     sitemap, sitemap_src = check_sitemap()
 
     events: list[str] = []
     if products is not None:
         events += diff_products(old.get("products") or {}, products)
+    if cpts:
+        events += diff_cpts(old.get("cpts") or {}, cpts)
     events += diff_pages(old.get("pages") or {}, pages)
     if sitemap is not None:
         events += diff_sitemap(old.get("sitemap") or [], sitemap)
@@ -330,11 +409,13 @@ def main() -> int:
         "checked_at": now,
         "products": products if products is not None else old.get("products", {}),
         "products_api": "ok" if products is not None else api_reason,
+        "cpts": cpts if cpts else old.get("cpts", {}),
         "pages": pages,
         "sitemap": sitemap if sitemap is not None else old.get("sitemap", []),
         "sources": {
             "store_api": "ok" if products is not None else api_reason,
             "sitemap": sitemap_src if sitemap is not None else f"khong doc duoc ({sitemap_src})",
+            "wp_rest": cpt_note,
             "pages": {u: v.get("status") for u, v in pages.items()},
         },
     }
@@ -346,8 +427,13 @@ def main() -> int:
           f"events={len(events)}")
     print(f"  store_api : {src['store_api']}")
     print(f"  sitemap   : {src['sitemap']}")
+    print(f"  wp_rest   : {src['wp_rest']}")
+    for base, items in (new_state.get("cpts") or {}).items():
+        print(f"  cpt       : {base} — {len(items)} muc")
     for u, st in src["pages"].items():
-        print(f"  page      : HTTP {st} — {u}")
+        flag = " ⚠︎ text ngan, co the render bang JS" \
+            if pages.get(u, {}).get("suspect") else ""
+        print(f"  page      : HTTP {st} — {u}{flag}")
 
     live_pages = [u for u, st in src["pages"].items() if st == 200]
     if not live_pages and products is None and sitemap is None:
@@ -360,7 +446,8 @@ def main() -> int:
                f"Baseline: {n_prod} san pham, {len(new_state['sitemap'])} URL\n"
                f"• Store API: {esc(str(src['store_api']))}\n"
                f"• Sitemap: {esc(str(src['sitemap']))}\n"
-               f"• Trang lich thi: {len(live_pages)}/{len(src['pages'])} truy cap duoc\n"
+               f"• WP REST: {esc(str(src['wp_rest']))}\n"
+               f"• Trang theo doi: {len(live_pages)}/{len(src['pages'])} truy cap duoc\n"
                f"Luc {now}")
         return 0
 
