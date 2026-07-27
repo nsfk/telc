@@ -19,26 +19,46 @@ jobs:
     timeout-minutes: 6
     steps:
       - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
-          # khong co requirements.txt -> KHONG dung `cache: pip`
+          persist-credentials: true
 
-      - name: Check IBK telc slots
+      # ubuntu-latest da co san python3 -> khong can setup-python,
+      # bot luon 1 canh bao Node.js va vai giay chay may
+      - name: Kiem tra suat thi
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           TELC_STATE: state/telc.json
-        run: python telc_monitor.py
+        run: python3 telc_monitor.py
 
-      - name: Commit state
+      - name: Luu state
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          if [[ -n "$(git status --porcelain state/)" ]]; then
-            git config user.name  "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add state/
-            git commit -m "state: $(date -u '+%Y-%m-%d %H:%M UTC')"
-            git pull --rebase --autostash origin "${GITHUB_REF_NAME}" || true
-            git push
+          set -euo pipefail
+          if [[ -z "$(git status --porcelain state/)" ]]; then
+            echo "state khong doi, bo qua commit"
+            exit 0
           fi
+
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git remote set-url origin \
+            "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+
+          git add state/
+          git commit -m "state: $(date -u '+%Y-%m-%d %H:%M UTC')"
+
+          for i in 1 2 3; do
+            git pull --rebase --autostash origin "${GITHUB_REF_NAME}" || true
+            if git push origin "HEAD:${GITHUB_REF_NAME}"; then
+              echo "da push state"
+              exit 0
+            fi
+            echo "push that bai (lan $i), thu lai sau 5s..."
+            sleep 5
+          done
+
+          echo "::error::Khong push duoc state. Kiem tra Settings → Actions → General"
+          echo "::error::→ Workflow permissions → chon 'Read and write permissions'."
+          exit 1
