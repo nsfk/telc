@@ -1,0 +1,20 @@
+{
+  "checked_at": "27/07/2026 20:01 ICT",
+  "pages": {
+    "https://abroad.ibk-merseburg.de/home/lich-thi/": {
+      "empty": false,
+      "hash": "03780b8363f63fd2",
+      "len": 30,
+      "status": 200
+    },
+    "https://abroad.ibk-merseburg.de/vi/home/lich-thi/": {
+      "empty": false,
+      "hash": "03780b8363f63fd2",
+      "len": 30,
+      "status": 200
+    }
+  },
+  "products": {},
+  "products_api": "HTTP 404 tai /wp-json/wc/store/products",
+  "sitemap": []
+}
