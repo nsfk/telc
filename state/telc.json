@@ -1,5 +1,5 @@
 {
-  "checked_at": "27/07/2026 20:01 ICT",
+  "checked_at": "27/07/2026 20:11 ICT",
   "pages": {
     "https://abroad.ibk-merseburg.de/home/lich-thi/": {
       "empty": false,
@@ -16,5 +16,13 @@
   },
   "products": {},
   "products_api": "HTTP 404 tai /wp-json/wc/store/products",
-  "sitemap": []
+  "sitemap": [],
+  "sources": {
+    "pages": {
+      "https://abroad.ibk-merseburg.de/home/lich-thi/": 200,
+      "https://abroad.ibk-merseburg.de/vi/home/lich-thi/": 200
+    },
+    "sitemap": "https://abroad.ibk-merseburg.de/wp-sitemap.xml",
+    "store_api": "HTTP 404 tai /wp-json/wc/store/products"
+  }
 }
