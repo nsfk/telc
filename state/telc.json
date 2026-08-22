@@ -1,5 +1,5 @@
 {
-  "checked_at": "22/08/2026 18:00 ICT",
+  "checked_at": "22/08/2026 18:30 ICT",
   "cpts": {
     "tc_events": [
       {
@@ -41,7 +41,7 @@
       "https://abroad.ibk-merseburg.de/home/lich-thi/": 200,
       "https://abroad.ibk-merseburg.de/vi/home/lich-thi/": 200
     },
-    "sitemap": "https://abroad.ibk-merseburg.de/wp-sitemap.xml — 0 URL, dau file: '<?xml version=\"1.0\" encoding=\"UTF-8\"?> <!-- This sitemap was dynamically generated on 22. August 2026 at 13:00 by All in One SEO v4.9.4.1 - the original SEO pl'",
+    "sitemap": "https://abroad.ibk-merseburg.de/wp-sitemap.xml — 0 URL, dau file: '<?xml version=\"1.0\" encoding=\"UTF-8\"?> <!-- This sitemap was dynamically generated on 22. August 2026 at 13:30 by All in One SEO v4.9.4.1 - the original SEO pl'",
     "store_api": "HTTP 404 tai /wp-json/wc/store/products",
     "wp_rest": "1 post type nghi van, 1 doc duoc"
   }
