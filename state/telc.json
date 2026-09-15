@@ -1,13 +1,7 @@
 {
-  "checked_at": "15/09/2026 14:59 ICT",
+  "checked_at": "15/09/2026 20:17 ICT",
   "cpts": {
-    "tc_events": [
-      {
-        "id": 5581,
-        "link": "https://abroad.ibk-merseburg.de/tc-events/telc-deutsch-b1-b2-digital/",
-        "title": "telc Deutsch B1, B2 digital"
-      }
-    ]
+    "tc_events": []
   },
   "pages": {
     "https://abroad.ibk-merseburg.de/": {
@@ -41,7 +35,7 @@
       "https://abroad.ibk-merseburg.de/home/lich-thi/": 200,
       "https://abroad.ibk-merseburg.de/vi/home/lich-thi/": 200
     },
-    "sitemap": "https://abroad.ibk-merseburg.de/wp-sitemap.xml — 0 URL, dau file: '<?xml version=\"1.0\" encoding=\"UTF-8\"?> <!-- This sitemap was dynamically generated on 15. September 2026 at 10:00 by All in One SEO v4.9.4.1 - the original SEO'",
+    "sitemap": "https://abroad.ibk-merseburg.de/wp-sitemap.xml — 0 URL, dau file: '<?xml version=\"1.0\" encoding=\"UTF-8\"?> <!-- This sitemap was dynamically generated on 15. September 2026 at 15:17 by All in One SEO v4.9.4.1 - the original SEO'",
     "store_api": "HTTP 404 tai /wp-json/wc/store/products",
     "wp_rest": "1 post type nghi van, 1 doc duoc"
   }
